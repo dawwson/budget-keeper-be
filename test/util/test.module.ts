@@ -11,12 +11,18 @@ import { CategoryModule } from '@src/api/category/category.module';
 import { StatModule } from '@src/api/stat/stat.module';
 import { TxModule } from '@src/api/tx/tx.module';
 import { UserModule } from '@src/api/user/user.module';
+import { LoggerModule } from '@src/logger/logger.module';
+import { NotificationModule } from '@src/notification/notification.module';
 
-import dbConfig from '@src/config/db.config';
-import serverConfig from '@src/config/server.config';
-import { AllExceptionFilter, HttpExceptionFilter } from '@src/shared/filter/custom-exception.filter';
+import dbConfig from '@src/config/db/db.config';
+import { DbConfig } from '@src/config/db/db.type';
+import { DB_CONFIG_TOKEN } from '@src/config/db/db.constant';
+import serverConfig from '@src/config/server/server.config';
+
+import { AllExceptionFilter } from '@src/shared/filter/all-exception.filter';
+import { HttpExceptionFilter } from '@src/shared/filter/http-exception.filter';
 import { TransformInterceptor } from '@src/shared/interceptor/transform.interceptor';
-import { DbConfig } from '@src/shared/interface/config.interface';
+import { LoggingInterceptor } from '@src/shared/interceptor/logging.interceptor';
 
 @Module({
   imports: [
@@ -29,7 +35,7 @@ import { DbConfig } from '@src/shared/interface/config.interface';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const dbConfig = configService.get<DbConfig>('db');
+        const dbConfig = configService.get<DbConfig>(DB_CONFIG_TOKEN);
 
         return {
           type: 'postgres',
@@ -38,13 +44,16 @@ import { DbConfig } from '@src/shared/interface/config.interface';
           username: dbConfig.username,
           password: dbConfig.password,
           database: dbConfig.database,
-          synchronize: dbConfig.synchronize,
+          synchronize: true,
           entities: [path.join(__dirname, '/../../src/**/*.entity{.ts,.js}')],
           namingStrategy: new SnakeNamingStrategy(),
           // logging: true,
         };
       },
     }),
+    LoggerModule,
+    NotificationModule,
+    // === API 모듈 ===
     AuthModule,
     BudgetModule,
     CategoryModule,
@@ -53,6 +62,18 @@ import { DbConfig } from '@src/shared/interface/config.interface';
     UserModule,
   ],
   providers: [
+    // === Interceptor ===
+    {
+      // 실행 순서 : 1
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
+    {
+      // 실행 순서 : 2
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+    // === Pipe ===
     {
       provide: APP_PIPE,
       useFactory: () =>
@@ -61,18 +82,16 @@ import { DbConfig } from '@src/shared/interface/config.interface';
           whitelist: true, // DTO 클래스에 없는 속성 제거
         }),
     },
-    // NOTE: 필터 우선순위는 역순!!
+    // === Filter ===
     {
+      // 실행 순서 : 2
       provide: APP_FILTER,
       useClass: AllExceptionFilter,
     },
     {
+      // 실행 순서 : 1
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TransformInterceptor,
     },
   ],
 })

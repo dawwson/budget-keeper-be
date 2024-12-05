@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { LoggerService } from '@src/logger/logger.service';
 import { JwtAuthGuard } from '@src/shared/guard/jwt-auth.guard';
 import { RequestWithTx, RequestWithUser } from '@src/shared/interface/request.interface';
 
@@ -36,7 +37,10 @@ export class TxController {
   constructor(
     private readonly txService: TxService,
     private readonly txQueryService: TxQueryService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext(TxController.name);
+  }
 
   @Post()
   async registerTx(@Req() req: RequestWithUser, @Body() dto: TxRegisterRequest) {
@@ -81,8 +85,16 @@ export class TxController {
   @UseGuards(OwnTxGuard)
   @Delete('/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteTx(@Param('id') txId: number) {
+  async deleteTx(@Req() req: RequestWithUser, @Param('id') txId: number) {
     await this.txService.deleteTx(txId);
+
+    this.logger.log('Transaction is deleted.', {
+      ip: req.ip,
+      userId: req.user.id,
+      txId,
+      deletionType: 'Hard Delete',
+    });
+
     return;
   }
 }

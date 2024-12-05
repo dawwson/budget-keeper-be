@@ -6,9 +6,10 @@ import { Repository } from 'typeorm';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+import { ServerConfig } from '@src/config/server/server.type';
+import { SERVER_CONFIG_TOKEN } from '@src/config/server/server.constant';
 import { User } from '@src/entity/user.entity';
 import { ErrorCode } from '@src/shared/enum/error-code.enum';
-import { ServerConfig } from '@src/shared/interface/config.interface';
 
 interface Payload {
   id: string;
@@ -30,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // Passport에서 JWT 만료 기간을 검증함
       ignoreExpiration: false,
       // secret key
-      secretOrKey: configService.get<ServerConfig>('server').jwtSecret,
+      secretOrKey: configService.get<ServerConfig>(SERVER_CONFIG_TOKEN).jwtSecret,
     });
   }
 

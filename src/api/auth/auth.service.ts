@@ -7,7 +7,6 @@ import { ErrorCode } from '@src/shared/enum/error-code.enum';
 import { comparePassword } from '@src/shared/util/encrypt.util';
 
 import { UserVerifyInput } from './dto/input/user-verify.input';
-import { UserVerifyOutput } from './dto/output/user-verify.output';
 import { UserDeleteInput } from './dto/input/user-delete.input';
 
 @Injectable()
@@ -27,7 +26,7 @@ export class AuthService {
     }
   }
 
-  async verifyUser(dto: UserVerifyInput): Promise<UserVerifyOutput> {
+  async verifyUser(dto: UserVerifyInput): Promise<User> {
     const user = await this.userRepo.findOneBy({ email: dto.email });
     if (!user) {
       throw new UnauthorizedException(ErrorCode.USER_EMAIL_DO_NOT_EXIST);
@@ -37,7 +36,8 @@ export class AuthService {
     if (!isMatched) {
       throw new UnauthorizedException(ErrorCode.USER_PASSWORD_IS_WRONG);
     }
-    return { id: user.id, nickname: user.nickname };
+
+    return user;
   }
 
   async deleteUser(dto: UserDeleteInput) {
@@ -48,6 +48,8 @@ export class AuthService {
       throw new UnauthorizedException(ErrorCode.USER_EMAIL_DO_NOT_EXIST);
     }
 
-    this.userRepo.softDelete({ id: userId });
+    await this.userRepo.softDelete({ id: userId });
+
+    return;
   }
 }

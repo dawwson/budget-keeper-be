@@ -1,14 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { UserLib } from '@src/api/user/service/user.lib';
+import { LoggerService } from '@src/logger/logger.service';
 
 @Injectable()
 export class TaskService {
-  // TODO: 로그 파일에 저장
-  private readonly logger = new Logger(TaskService.name);
-
-  constructor(private readonly userLib: UserLib) {}
+  constructor(
+    private readonly userLib: UserLib,
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext(TaskService.name);
+  }
 
   /**
    * 매일 12:00 AM - 탈퇴 처리된 사용자 데이터 일괄 삭제
@@ -26,21 +29,23 @@ export class TaskService {
       try {
         await this.userLib.deleteUser(user.id);
         deletedUsers.push(user.id);
+        throw new Error('❌ TEST ERROR');
       } catch (error) {
-        this.logger.error(`Failed to delete user with ID ${user.id}: ${error.message}`, error.stack);
+        this.logger.error('Failed to delete user.', {
+          userId: user.id,
+          trace: error.stack,
+        });
       }
     }
 
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2); // 단위: 초(소수점 둘째자리까지)
 
-    this.logger.log(
-      `Account deletion task completed.
-      > Total Users Processed: ${pendingUsers.length},
-      > Successfully Deleted: ${deletedUsers.length},
-      > Failed: ${pendingUsers.length - deletedUsers.length},
-      > Time Taken: ${duration} seconds.
-    `,
-    );
+    this.logger.log('Account deletion task completed.', {
+      processed: pendingUsers.length,
+      deleted: deletedUsers.length,
+      failed: pendingUsers.length - deletedUsers.length,
+      duration: `${duration} s`,
+    });
   }
 }
